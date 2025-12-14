@@ -23,7 +23,7 @@ Claude가 의장으로서 모든 의견을 종합하여 공통점, 차이점, �
 ### 방법 A: npx로 설치 (권장)
 
 ```bash
-npx @anthropic-skills/agent-council
+npx github:team-attention/agent-council
 ```
 
 현재 프로젝트 디렉토리에 스킬 파일들이 복사됩니다.

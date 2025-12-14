@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-skills/agent-council",
+  "name": "@team-attention/agent-council",
   "version": "1.0.0",
   "description": "Collect and synthesize opinions from multiple AI Agents for Claude Code",
   "bin": {

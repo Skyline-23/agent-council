@@ -23,7 +23,7 @@ Claude acts as the Chairman, synthesizing all opinions into a final recommendati
 ### Option A: Install via npx (Recommended)
 
 ```bash
-npx @anthropic-skills/agent-council
+npx github:team-attention/agent-council
 ```
 
 This copies the skill files to your current project directory.
