@@ -6,7 +6,11 @@
   "plugins": [
     {
       "name": "agent-council",
-      "source": "./"
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/agent-council"
+      ]
     }
   ]
 }
