@@ -1,3 +1,8 @@
+---
+name: agent-council
+description: Collect and synthesize opinions from multiple AI Agents. Use when users say "summon the council", "ask other AIs", or want multiple AI perspectives on a question.
+---
+
 # Agent Council
 
 > Collect and synthesize opinions from multiple AI Agents
