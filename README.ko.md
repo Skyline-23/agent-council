@@ -2,8 +2,16 @@
 
 **[English Version](./README.md)**
 
-> 여러 AI Agent의 의견을 수집하고 종합하는 Claude Code 플러그인
+> Claude Code가 Codex, Gemini CLI와 회의해서 결론을 내리는 스킬
 > [Karpathy의 LLM Council](https://github.com/karpathy/llm-council)에서 영감을 받음
+
+## LLM Council과의 차이점
+
+**추가 API 비용이 들지 않습니다!**
+
+Karpathy의 LLM Council은 각 LLM의 API를 직접 호출하여 비용이 발생하지만, Agent Council은 CLI 도구(Codex CLI, Gemini CLI)를 활용합니다. Claude를 메인으로 사용하고 나머지는 $20 구독 플랜으로 가끔 사용하는 분들에게 특히 유용합니다.
+
+MCP보다 Skill이 훨씬 간단하고 재현 가능해서 npx로 설치 후 직접 커스터마이징하여 사용하시는 것을 추천합니다.
 
 ## 데모
 
@@ -138,10 +146,10 @@ agent-council/
 
 ## 주의사항
 
-- 각 에이전트 호출에 API 비용 발생
 - 응답 시간은 가장 느린 에이전트에 의존 (병렬 실행)
 - 민감한 정보는 council에 공유하지 않기
 - 에이전트는 기본적으로 병렬로 실행되어 빠른 응답 제공
+- 각 CLI 도구의 구독 플랜이 필요합니다 (API 비용 별도 발생 없음)
 
 ## 기여하기
 

@@ -2,8 +2,16 @@
 
 **[한국어 버전 (Korean)](./README.ko.md)**
 
-> A Claude Code plugin that collects and synthesizes opinions from multiple AI Agents.
+> A Claude Code skill that lets Claude discuss with Codex and Gemini CLI to reach conclusions.
 > Inspired by [Karpathy's LLM Council](https://github.com/karpathy/llm-council)
+
+## Key Difference from LLM Council
+
+**No additional API costs!**
+
+Unlike Karpathy's LLM Council which directly calls each LLM's API (incurring costs), Agent Council uses CLI tools (Codex CLI, Gemini CLI). This is especially useful if you use Claude as your main tool and have $20 subscription plans for the others.
+
+Skills are much simpler and more reproducible than MCP. We recommend installing via npx and customizing it yourself!
 
 ## Demo
 
@@ -138,10 +146,10 @@ agent-council/
 
 ## Notes
 
-- API costs are incurred for each agent call
 - Response time depends on the slowest agent (parallel execution)
 - Do not share sensitive information with the council
 - Agents run in parallel by default for faster responses
+- Subscription plans for each CLI tool are required (no additional API costs)
 
 ## Contributing
 
