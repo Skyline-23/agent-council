@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+const YAML = require('yaml');
 
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
@@ -19,7 +21,7 @@ function parseArgs(argv) {
   const flags = new Set(args);
 
   const targetIndex = args.indexOf('--target');
-  let target = 'claude';
+  let target = 'auto';
   if (targetIndex !== -1 && args[targetIndex + 1]) {
     target = args[targetIndex + 1];
   } else if (flags.has('--both')) {
@@ -30,8 +32,8 @@ function parseArgs(argv) {
     target = 'claude';
   }
 
-  if (!['claude', 'codex', 'both'].includes(target)) {
-    throw new Error(`Invalid --target "${target}". Use claude|codex|both.`);
+  if (!['auto', 'claude', 'codex', 'both'].includes(target)) {
+    throw new Error(`Invalid --target "${target}". Use auto|claude|codex|both.`);
   }
 
   return { target };
@@ -62,8 +64,46 @@ function copyRecursive(src, dest) {
   }
 }
 
+function commandExists(command) {
+  try {
+    const checkCmd = process.platform === 'win32' ? `where ${command}` : `command -v ${command}`;
+    execSync(checkCmd, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 try {
-  const { target } = parseArgs(process.argv);
+  const { target: requestedTarget } = parseArgs(process.argv);
+
+  const detected = {
+    claude: commandExists('claude'),
+    codex: commandExists('codex'),
+    gemini: commandExists('gemini'),
+  };
+
+  const hasClaudeDir = fs.existsSync(claudeDir);
+  const hasCodexDir = fs.existsSync(codexDir);
+
+  let target = requestedTarget;
+  if (requestedTarget === 'auto') {
+    const wantClaude = hasClaudeDir || detected.claude;
+    const wantCodex = hasCodexDir || detected.codex;
+
+    if (wantClaude && wantCodex) target = 'both';
+    else if (wantCodex) target = 'codex';
+    else if (wantClaude) target = 'claude';
+    else target = 'claude';
+
+    console.log(`${CYAN}Auto-detected target:${NC} ${target}`);
+    if (!wantClaude && !wantCodex) {
+      console.log(
+        `${YELLOW}  ⓘ Could not detect Claude Code or Codex CLI; defaulting to "claude". Use --target codex if needed.${NC}`
+      );
+    }
+    console.log();
+  }
 
   const installs = [];
   if (target === 'claude' || target === 'both') {
@@ -72,6 +112,7 @@ try {
       rootDir: claudeDir,
       skillsDest: path.join(claudeDir, 'skills', 'agent-council'),
       displayPath: '.claude/skills/agent-council',
+      hostRole: 'claude',
     });
   }
   if (target === 'codex' || target === 'both') {
@@ -80,12 +121,14 @@ try {
       rootDir: codexDir,
       skillsDest: path.join(codexDir, 'skills', 'agent-council'),
       displayPath: '.codex/skills/agent-council',
+      hostRole: 'codex',
     });
   }
 
   // Copy skills folder to target(s)
   const skillsSrc = path.join(packageRoot, 'skills', 'agent-council');
-  const configSrc = path.join(packageRoot, 'council.config.yaml');
+  const templateConfigPath = path.join(packageRoot, 'council.config.yaml');
+  const templateConfigText = fs.existsSync(templateConfigPath) ? fs.readFileSync(templateConfigPath, 'utf8') : null;
 
   for (const install of installs) {
     if (!fs.existsSync(install.rootDir)) {
@@ -100,9 +143,50 @@ try {
 
     // Copy config file to skill folder if not exists
     const configDest = path.join(install.skillsDest, 'council.config.yaml');
-    if (fs.existsSync(configSrc) && !fs.existsSync(configDest)) {
+    if (!fs.existsSync(configDest)) {
       console.log(`${YELLOW}Installing config (${install.label})...${NC}`);
-      fs.copyFileSync(configSrc, configDest);
+      if (!templateConfigText) {
+        console.log(`${YELLOW}  ⓘ Template council.config.yaml not found; writing an empty config.${NC}`);
+        fs.writeFileSync(
+          configDest,
+          ['council:', '  members: []', '  chairman:', '    role: "auto"', '  settings:', '    parallel: true', ''].join(
+            '\n'
+          ),
+          'utf8'
+        );
+        console.log(`${GREEN}  ✓ ${install.displayPath}/council.config.yaml${NC}`);
+        continue;
+      }
+
+      const doc = YAML.parseDocument(templateConfigText);
+      const membersNode = doc.getIn(['council', 'members']);
+
+      if (membersNode && YAML.isCollection(membersNode)) {
+        const enabledMembers = membersNode.items.filter((item) => {
+          const member = item.toJSON();
+          const nameLc = String(member.name || '').toLowerCase();
+          if (nameLc === install.hostRole) return false;
+
+          const baseCommand = String(member.command || '')
+            .trim()
+            .split(/\s+/)[0];
+          if (!baseCommand) return false;
+
+          return commandExists(baseCommand);
+        });
+
+        membersNode.items = enabledMembers;
+
+        if (enabledMembers.length === 0) {
+          console.log(
+            `${YELLOW}  ⓘ No member CLIs detected from template. Writing members: []; edit council.config.yaml to add members.${NC}`
+          );
+        }
+      } else {
+        console.log(`${YELLOW}  ⓘ Template is missing council.members; writing template as-is.${NC}`);
+      }
+
+      fs.writeFileSync(configDest, String(doc), 'utf8');
       console.log(`${GREEN}  ✓ ${install.displayPath}/council.config.yaml${NC}`);
     } else if (fs.existsSync(configDest)) {
       console.log(`${YELLOW}  ⓘ council.config.yaml already exists (${install.label}), skipping${NC}`);
@@ -114,15 +198,29 @@ try {
   console.log(`${GREEN}  Installation complete!${NC}`);
   console.log(`${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}`);
   console.log();
-  console.log(`${CYAN}Usage in Claude:${NC}`);
-  console.log(`  "Summon the council"`);
-  console.log(`  "Let's hear opinions from other AIs"`);
+  if (installs.some((i) => i.hostRole === 'claude')) {
+    console.log(`${CYAN}Usage in Claude:${NC}`);
+    console.log(`  "Summon the council"`);
+    console.log(`  "Let's hear opinions from other AIs"`);
+    console.log();
+  }
+  if (installs.some((i) => i.hostRole === 'codex')) {
+    console.log(`${CYAN}Usage in Codex:${NC}`);
+    console.log(`  "Summon the council"`);
+    console.log(`  "Let's hear opinions from other AIs"`);
+    console.log();
+  }
   console.log();
   console.log(`${CYAN}Direct execution:${NC}`);
-  console.log(`  .claude/skills/agent-council/scripts/council.sh "your question"`);
-  console.log(`  .codex/skills/agent-council/scripts/council.sh "your question"`);
+  if (installs.some((i) => i.hostRole === 'claude')) {
+    console.log(`  .claude/skills/agent-council/scripts/council.sh "your question"`);
+  }
+  if (installs.some((i) => i.hostRole === 'codex')) {
+    console.log(`  .codex/skills/agent-council/scripts/council.sh "your question"`);
+  }
   console.log();
-  console.log(`${YELLOW}Note: Make sure codex and gemini CLIs are installed.${NC}`);
+  console.log(`${YELLOW}Note: Only detected CLIs are enabled as members in the generated config.${NC}`);
+  console.log(`${YELLOW}      Detected: claude=${detected.claude} codex=${detected.codex} gemini=${detected.gemini}${NC}`);
 
 } catch (error) {
   console.error(`${RED}Error during installation: ${error.message}${NC}`);
