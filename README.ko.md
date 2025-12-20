@@ -39,6 +39,7 @@ npx github:team-attention/agent-council
 ```
 
 현재 프로젝트 디렉토리에 스킬 파일들이 복사됩니다.
+Agent Council을 업그레이드한 뒤 `Missing runtime dependency: yaml` 같은 런타임 에러가 나면, 위 설치 커맨드를 한 번 더 실행해서 설치된 스킬 파일을 갱신하세요.
 
 기본값으로 설치 스크립트가 자동으로 Claude Code(`.claude/`) / Codex CLI(`.codex/`) 설치 여부를 감지해서 가능한 타깃에 설치합니다.
 
@@ -68,6 +69,8 @@ npx github:team-attention/agent-council --target both
 # 플러그인 설치
 /plugin install agent-council@team-attention-plugins
 ```
+
+참고(플러그인 설치): **Agent Council은 Node.js가 필요**하며, Claude Code 플러그인은 Node를 번들/자동 설치할 수 없습니다. Node를 별도로 설치하세요(예: macOS `brew install node`).
 
 ### 2. Agent CLI 설치
 
@@ -137,10 +140,29 @@ council:
 ### 스크립트 직접 실행
 
 ```bash
-.claude/skills/agent-council/scripts/council.sh "질문 내용"
-# 또는
+JOB_DIR=$(.codex/skills/agent-council/scripts/council.sh start "질문 내용")
+.codex/skills/agent-council/scripts/council.sh status --text "$JOB_DIR"
+.codex/skills/agent-council/scripts/council.sh results "$JOB_DIR"
+.codex/skills/agent-council/scripts/council.sh clean "$JOB_DIR"
+```
+
+팁: `status --text`에 `--verbose`를 추가하면 멤버별 상태 라인이 함께 출력됩니다.
+팁: `status --checklist`는 체크리스트 형태로 간단히 보여줍니다(Codex/Claude tool cell에 유용).
+팁: `wait`를 쓰면 “의미 있는 진행”이 있을 때만 반환해서 tool cell 스팸을 줄일 수 있습니다(JSON 출력, 커서는 자동으로 저장/갱신; 기본값은 멤버 수에 따라 대략 ~5~10번 수준으로 자동 배치, `--bucket 1`이면 매 완료마다 반환).
+
+원샷 실행(잡 시작 → 대기 → 결과 출력 → 정리):
+
+```bash
 .codex/skills/agent-council/scripts/council.sh "질문 내용"
 ```
+
+참고: 호스트 에이전트 도구 UI(Codex CLI / Claude Code)에서는 원샷이 **블로킹하지 않습니다**. 네이티브 plan/todo UI를 갱신할 수 있도록 `wait` JSON을 한 번 반환하고 종료하며, 이후 `wait` → 네이티브 UI 갱신 → `results` → `clean` 순서로 진행하세요.
+
+#### 진행상황
+
+- 실제 터미널에서는 원샷이 멤버 완료에 맞춰 진행상황 라인을 주기적으로 출력합니다.
+- 호스트 에이전트 도구 UI에서는 원샷이 `wait` JSON을 반환합니다(네이티브 plan/todo UI 갱신 목적).
+- 스크립팅이 필요하면 job mode(`start` → `status` → `results` → `clean`)도 사용할 수 있습니다.
 
 ## 예시
 
@@ -167,7 +189,10 @@ agent-council/
 │   └── agent-council/
 │       ├── SKILL.md         # 스킬 문서
 │       └── scripts/
-│           └── council.sh   # 실행 스크립트
+│           ├── council.sh           # 실행 스크립트
+│           ├── council-job.sh       # 백그라운드 Job runner (폴링 가능)
+│           ├── council-job.js       # Job runner 구현
+│           └── council-job-worker.js # 멤버별 워커
 ├── council.config.yaml      # Council 멤버 설정
 ├── README.md                # 영어 문서
 ├── README.ko.md             # 이 문서

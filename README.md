@@ -39,6 +39,7 @@ npx github:team-attention/agent-council
 ```
 
 This copies the skill files to your current project directory.
+If you upgrade Agent Council and hit a runtime error like `Missing runtime dependency: yaml`, re-run the installer command above to refresh your installed skill files.
 
 By default, the installer auto-detects whether to install for Claude Code (`.claude/`) and/or Codex CLI (`.codex/`) based on what’s available on your machine and in the repo.
 
@@ -68,6 +69,8 @@ The generated `council.config.yaml` enables only detected member CLIs (e.g. `cla
 # Install the plugin
 /plugin install agent-council@team-attention-plugins
 ```
+
+Note (Plugin installs): **Agent Council requires Node.js**, and Claude Code plugins can’t bundle or auto-install Node for you. Install Node separately (e.g. `brew install node` on macOS).
 
 ### 2. Install Agent CLIs
 
@@ -137,10 +140,29 @@ Ask your host agent to summon the council:
 ### Direct Script Execution
 
 ```bash
-.claude/skills/agent-council/scripts/council.sh "Your question here"
-# or
+JOB_DIR=$(.codex/skills/agent-council/scripts/council.sh start "Your question here")
+.codex/skills/agent-council/scripts/council.sh status --text "$JOB_DIR"
+.codex/skills/agent-council/scripts/council.sh results "$JOB_DIR"
+.codex/skills/agent-council/scripts/council.sh clean "$JOB_DIR"
+```
+
+Tip: add `--verbose` to `status --text` to include per-member lines.
+Tip: use `status --checklist` for a compact checkbox view (handy in Codex/Claude tool cells).
+Tip: use `wait` to block until meaningful progress without spamming tool cells (prints JSON, persists a cursor automatically; auto-batches to a small number of updates (typically ~5–10); `--bucket 1` for every completion).
+
+One-shot (runs job → waits → prints results → cleans):
+
+```bash
 .codex/skills/agent-council/scripts/council.sh "Your question here"
 ```
+
+Note: In host-agent tool UIs (Codex CLI / Claude Code), one-shot does **not** block. It returns a single `wait` JSON payload so the host agent can update native plan/todo UIs. Continue with `wait` → native UI update → `results` → `clean`.
+
+#### Progress
+
+- In a real terminal, one-shot prints periodic progress lines as members complete.
+- In host-agent tool UIs, one-shot returns `wait` JSON (so the host can update native plan/todo UIs).
+- Job mode is still available for scripting (`start` → `status` → `results` → `clean`).
 
 ## Example
 
@@ -167,7 +189,10 @@ agent-council/
 │   └── agent-council/
 │       ├── SKILL.md         # Skill documentation
 │       └── scripts/
-│           └── council.sh   # Execution script
+│           ├── council.sh       # Execution script
+│           ├── council-job.sh   # Background job runner (pollable)
+│           ├── council-job.js   # Job runner implementation
+│           └── council-job-worker.js # Per-member worker
 ├── council.config.yaml      # Council member configuration
 ├── README.md                # This file
 ├── README.ko.md             # Korean documentation
